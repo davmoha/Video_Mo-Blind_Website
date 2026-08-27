@@ -1,0 +1,6 @@
+{
+  "name": "MO-Blind Solutions",
+  "description": "A sleek, professional portal for MO-Blind Solutions showcasing AI Voice Automation integrations, featuring an embedded interactive voice agent demo for Shocky Shock Electric in Tampa, FL.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

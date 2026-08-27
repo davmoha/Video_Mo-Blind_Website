@@ -1,0 +1,21 @@
+# robots.txt for Mo-Blind Solutions (mo-blind.com)
+User-agent: *
+Allow: /
+
+# Directives for AI Search & Answer Engines
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://mo-blind.com/sitemap.xml

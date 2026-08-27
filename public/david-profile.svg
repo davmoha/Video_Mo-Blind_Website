@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2D3A3A"/>
+      <stop offset="50%" stop-color="#1E282A"/>
+      <stop offset="100%" stop-color="#0E1618"/>
+    </linearGradient>
+
+    <!-- Skin Gradient -->
+    <radialGradient id="skinGrad" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#E2A77A"/>
+      <stop offset="60%" stop-color="#C6895C"/>
+      <stop offset="100%" stop-color="#A56C42"/>
+    </radialGradient>
+
+    <!-- Skin Highlight -->
+    <linearGradient id="foreheadLight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F2BE94" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#E2A77A" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Plaid Shirt Pattern -->
+    <pattern id="plaidPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="#E86A7A"/>
+      <rect x="0" y="0" width="40" height="10" fill="#F48B98" opacity="0.8"/>
+      <rect x="0" y="20" width="40" height="6" fill="#3B7CB0" opacity="0.6"/>
+      <rect x="0" y="30" width="40" height="5" fill="#48A870" opacity="0.5"/>
+      <rect x="0" y="0" width="10" height="40" fill="#F48B98" opacity="0.8"/>
+      <rect x="20" y="0" width="6" height="40" fill="#3B7CB0" opacity="0.6"/>
+      <rect x="30" y="0" width="5" height="40" fill="#48A870" opacity="0.5"/>
+      <rect x="0" y="0" width="10" height="10" fill="#FFFFFF" opacity="0.4"/>
+      <rect x="20" y="20" width="6" height="6" fill="#1C3F5E" opacity="0.7"/>
+    </pattern>
+
+    <!-- Glasses Glare -->
+    <linearGradient id="glareGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.45"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <!-- Subtle Glow -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="600" height="600" fill="url(#bgGrad)"/>
+  <circle cx="300" cy="240" r="220" fill="#1AD1B5" opacity="0.12" filter="url(#softGlow)"/>
+
+  <!-- Plaid Collared Shirt / Shoulders -->
+  <path d="M 110,600 C 130,470 190,440 240,430 L 300,470 L 360,430 C 410,440 470,470 490,600 Z" fill="url(#plaidPattern)"/>
+  
+  <!-- Shirt Shadow and Collar Fold -->
+  <path d="M 230,425 L 300,530 L 370,425 L 340,420 L 300,475 L 260,420 Z" fill="#D95768" stroke="#FFFFFF" stroke-width="1.5"/>
+  <path d="M 240,430 L 290,480 L 275,540 L 230,450 Z" fill="url(#plaidPattern)" stroke="#222" stroke-width="1"/>
+  <path d="M 360,430 L 310,480 L 325,540 L 370,450 Z" fill="url(#plaidPattern)" stroke="#222" stroke-width="1"/>
+
+  <!-- Shirt Buttons -->
+  <circle cx="300" cy="510" r="5" fill="#FFFFFF" stroke="#CCCCCC" stroke-width="1"/>
+  <circle cx="300" cy="555" r="5" fill="#FFFFFF" stroke="#CCCCCC" stroke-width="1"/>
+  
+  <!-- Tiny Whale Logo on Left Pocket -->
+  <path d="M 400,535 C 415,530 430,535 435,545 C 425,548 410,545 400,535 Z M 433,540 C 438,536 442,538 444,541 C 440,542 435,541 433,540 Z" fill="#1B365D"/>
+
+  <!-- Neck -->
+  <path d="M 260,370 L 260,450 C 275,465 325,465 340,450 L 340,370 Z" fill="#B77B50"/>
+  <!-- Neck shadow -->
+  <path d="M 260,370 C 285,410 315,410 340,370 Z" fill="#8C532E" opacity="0.4"/>
+
+  <!-- Head Base -->
+  <ellipse cx="300" cy="270" rx="108" ry="138" fill="url(#skinGrad)"/>
+
+  <!-- Ears -->
+  <path d="M 194,260 C 182,250 180,290 196,305 Z" fill="#C6895C"/>
+  <path d="M 192,268 C 186,262 185,285 194,295 Z" fill="#9E6138"/>
+  <path d="M 406,260 C 418,250 420,290 404,305 Z" fill="#C6895C"/>
+  <path d="M 408,268 C 414,262 415,285 406,295 Z" fill="#9E6138"/>
+
+  <!-- Hair (Short dark hair on sides & temples, bald crown) -->
+  <path d="M 193,250 C 190,210 205,170 230,155 C 220,175 220,210 215,250 Z" fill="#231F20"/>
+  <path d="M 407,250 C 410,210 395,170 370,155 C 380,175 380,210 385,250 Z" fill="#231F20"/>
+  <path d="M 225,160 C 260,140 340,140 375,160 C 350,152 250,152 225,160 Z" fill="#231F20" opacity="0.6"/>
+
+  <!-- Forehead highlight -->
+  <ellipse cx="300" cy="190" rx="65" ry="35" fill="url(#foreheadLight)"/>
+
+  <!-- Eyebrows -->
+  <path d="M 235,232 C 250,225 270,228 280,235" stroke="#2B1E16" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+  <path d="M 365,232 C 350,225 330,228 320,235" stroke="#2B1E16" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Eyes -->
+  <!-- Left Eye -->
+  <ellipse cx="258" cy="256" rx="14" ry="9" fill="#FFFFFF"/>
+  <ellipse cx="258" cy="256" rx="7.5" ry="7.5" fill="#3B2314"/>
+  <circle cx="256" cy="254" r="2.5" fill="#FFFFFF"/>
+  <path d="M 244,254 C 250,248 266,248 272,254" stroke="#4A2A18" stroke-width="2" fill="none"/>
+
+  <!-- Right Eye -->
+  <ellipse cx="342" cy="256" rx="14" ry="9" fill="#FFFFFF"/>
+  <ellipse cx="342" cy="256" rx="7.5" ry="7.5" fill="#3B2314"/>
+  <circle cx="340" cy="254" r="2.5" fill="#FFFFFF"/>
+  <path d="M 328,254 C 334,248 350,248 356,254" stroke="#4A2A18" stroke-width="2" fill="none"/>
+
+  <!-- Glasses Frames (Black Wireframe Modern Rectangular) -->
+  <!-- Left Frame -->
+  <rect x="232" y="240" width="52" height="34" rx="8" ry="8" fill="url(#glareGrad)" stroke="#111111" stroke-width="3.5"/>
+  <!-- Right Frame -->
+  <rect x="316" y="240" width="52" height="34" rx="8" ry="8" fill="url(#glareGrad)" stroke="#111111" stroke-width="3.5"/>
+  <!-- Bridge -->
+  <path d="M 284,250 C 295,246 305,246 316,250" stroke="#111111" stroke-width="3.5" fill="none"/>
+  <!-- Temples -->
+  <path d="M 232,248 L 195,255" stroke="#111111" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 368,248 L 405,255" stroke="#111111" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Nose -->
+  <path d="M 296,258 L 293,292 C 285,296 315,296 307,292 Z" fill="#B37346"/>
+  <ellipse cx="288" cy="293" rx="4.5" ry="2.5" fill="#78411D"/>
+  <ellipse cx="312" cy="293" rx="4.5" ry="2.5" fill="#78411D"/>
+
+  <!-- Smile & Teeth (Warm, friendly genuine smile) -->
+  <!-- Smile shadow -->
+  <path d="M 262,326 C 275,364 325,364 338,326 Z" fill="#6B1D24"/>
+  <!-- White Teeth -->
+  <path d="M 268,328 C 280,345 320,345 332,328 C 325,326 275,326 268,328 Z" fill="#FFFFFF"/>
+  <line x1="300" y1="327" x2="300" y2="336" stroke="#DDDDDD" stroke-width="1"/>
+  <line x1="288" y1="327" x2="288" y2="335" stroke="#EEEEEE" stroke-width="0.8"/>
+  <line x1="312" y1="327" x2="312" y2="335" stroke="#EEEEEE" stroke-width="0.8"/>
+  <!-- Lower lip -->
+  <path d="M 275,348 C 290,360 310,360 325,348 C 315,355 285,355 275,348 Z" fill="#C26B54"/>
+  <!-- Smile dimples / lines -->
+  <path d="M 248,318 C 254,330 258,340 264,346" stroke="#9E6138" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M 352,318 C 346,330 342,340 336,346" stroke="#9E6138" stroke-width="2" stroke-linecap="round" fill="none"/>
+
+  <!-- Tech Guide / Combat Medic Badge Overlay in lower corner -->
+  <g transform="translate(470, 470)">
+    <circle cx="30" cy="30" r="28" fill="#0D1321" stroke="#1AD1B5" stroke-width="2"/>
+    <path d="M 25,18 L 35,18 L 35,25 L 42,25 L 42,35 L 35,35 L 35,42 L 25,42 L 25,35 L 18,35 L 18,25 L 25,25 Z" fill="#1AD1B5"/>
+  </g>
+</svg>
