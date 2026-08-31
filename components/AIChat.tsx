@@ -97,8 +97,24 @@ const AIChat: React.FC = () => {
               className="h-64 md:h-80 overflow-y-auto p-4 space-y-3 scroll-smooth"
             >
               {messages.map((msg, idx) => (
-                <div
+                <motion.div
                   key={idx}
+                  initial={{ 
+                    opacity: 0, 
+                    y: 10, 
+                    scale: 0.96, 
+                    x: msg.role === 'user' ? 8 : -8 
+                  }}
+                  animate={{ 
+                    opacity: 1, 
+                    y: 0, 
+                    scale: 1, 
+                    x: 0 
+                  }}
+                  transition={{ 
+                    duration: 0.25, 
+                    ease: [0.22, 1, 0.36, 1] 
+                  }}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
@@ -110,16 +126,21 @@ const AIChat: React.FC = () => {
                   >
                     {msg.text}
                   </div>
-                </div>
+                </motion.div>
               ))}
               {isLoading && (
-                <div className="flex justify-start">
+                <motion.div 
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex justify-start"
+                >
                   <div className="bg-white/5 border border-white/5 p-3 rounded-2xl rounded-tl-none flex gap-1">
                     <span className="w-1.5 h-1.5 bg-[#1AD1B5] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-1.5 h-1.5 bg-[#1AD1B5] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <span className="w-1.5 h-1.5 bg-[#1AD1B5] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
-                </div>
+                </motion.div>
               )}
             </div>
 

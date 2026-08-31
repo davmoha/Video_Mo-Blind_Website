@@ -1280,7 +1280,10 @@ const App: React.FC = () => {
       </section>
 
       {/* 60-SECOND PHILOSOPHY VIDEO SECTION */}
-      <VideoSection onBookCall={() => scrollToSection('consultation')} />
+      <VideoSection 
+        youtubeVideoId="https://youtu.be/DRgf5DnR3w0?si=mTlYbXzerDQbAmSI"
+        onBookCall={() => scrollToSection('consultation')} 
+      />
 
       {/* HOW WE'RE DIFFERENT: THE DIAGNOSTIC DNA */}
       <section id="difference" className="relative z-10 py-20 md:py-32 bg-[#0A0D14]/30 border-b border-white/5">
@@ -1421,7 +1424,13 @@ const App: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
             
             {/* Left Box: Client Scenario Parameters */}
-            <div className="lg:col-span-5 bg-[#0D1321]/80 backdrop-blur-md rounded-3xl border border-white/5 p-6 md:p-8 flex flex-col justify-between glow-border relative overflow-hidden">
+            <motion.div 
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="lg:col-span-5 bg-[#0D1321]/80 backdrop-blur-md rounded-3xl border border-white/5 p-6 md:p-8 flex flex-col justify-between glow-border relative overflow-hidden"
+            >
               <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#1AD1B5]/10 to-transparent pointer-events-none" />
               <div>
                 <div className="flex items-center gap-2 mb-4">
@@ -1472,10 +1481,16 @@ const App: React.FC = () => {
                   💡 <b className="text-[#1AD1B5]">Try Testing Sparky:</b> Ask about booking wiring for a new detached garage, check availability for AC capacitor replacement, request a hot tub subpanel, or test how he routes an on-call tech after hours!
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             {/* Right Box: Floating Interactive Phone Sandbox */}
-            <div className="lg:col-span-7 flex flex-col items-center justify-center">
+            <motion.div 
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              className="lg:col-span-7 flex flex-col items-center justify-center"
+            >
               <div className="w-full max-w-xl bg-[#090D14]/90 backdrop-blur-xl border border-[#1AD1B5]/20 rounded-[32px] overflow-hidden shadow-2xl shadow-[#1AD1B5]/5 relative flex flex-col h-[560px]">
                 
                 {/* Phone Header panel */}
@@ -1497,248 +1512,295 @@ const App: React.FC = () => {
 
                 {/* Main Inside Phone Module Panel */}
                 <div className="flex-1 overflow-hidden p-6 relative flex flex-col justify-between">
-                  {!isCallActive && !isDialing ? (
-                    
-                    /* IDLE DIAL SCREEN */
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                      <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-inner relative group cursor-pointer" onClick={handleDial}>
-                        <div className="absolute inset-2 rounded-full bg-[#1AD1B5]/10 opacity-40 group-hover:scale-125 transition-transform duration-500" />
-                        <Phone className="w-8 h-8 text-[#1AD1B5] group-hover:rotate-12 transition-transform duration-300" />
-                      </div>
-                      <h4 className="text-xl font-bold font-sans uppercase text-white mb-2 leading-none">Sparky is Ready</h4>
-                      <p className="text-xs text-gray-400 max-w-sm leading-relaxed mb-6">
-                        Test Sparky's voice answering, troubleshooting questions, and dispatch routines live. Connect your feed instantly below.
-                      </p>
-
-                      <div className="space-y-4">
-                        <button 
-                          onClick={handleDial}
-                          className="bg-gradient-to-r from-[#1AD1B5] via-[#2ba8b5] to-[#855df6] text-black font-extrabold uppercase text-xs tracking-wider py-4 px-8 rounded-xl hover:brightness-110 shadow-lg shadow-teal-500/10 cursor-pointer text-center flex items-center gap-2 justify-center"
-                          data-hover="true"
-                        >
-                          <Phone className="w-4 h-4 fill-black" />
-                          <span>Place Demo Call</span>
-                        </button>
-
-                        <label className="flex items-center justify-center gap-2.5 text-xs text-gray-400 cursor-pointer mb-2">
-                          <input 
-                            type="checkbox" 
-                            checked={voiceEnabled}
-                            onChange={(e) => setVoiceEnabled(e.target.checked)}
-                            className="rounded accent-[#1AD1B5] border-white/10 w-4 h-4"
-                          />
-                          <span>Voice Reader Enabled (Hear Sparky Speak)</span>
-                        </label>
-                      </div>
-                    </div>
-
-                  ) : isDialing ? (
-                    
-                    /* DIALING SCREEN */
-                    <div className="flex-1 flex flex-col items-center justify-center text-center">
-                      <div className="w-20 h-20 rounded-full bg-[#1AD1B5]/10 border border-[#1AD1B5]/40 flex items-center justify-center mb-6 animate-pulse">
-                        <Phone className="w-8 h-8 text-[#1AD1B5] animate-bounce" />
-                      </div>
-                      <h4 className="text-lg font-bold font-mono uppercase text-[#1AD1B5] tracking-widest mb-1.5 animate-pulse">Dialing...</h4>
-                      <p className="text-xs text-gray-400 font-mono">Connecting secure playground line...</p>
-                    </div>
-
-                  ) : (
-                    
-                    /* ACTIVE CALL SCREEN */
-                    <div className="flex-1 flex flex-col justify-between h-full relative overflow-hidden">
+                  <AnimatePresence mode="wait">
+                    {!isCallActive && !isDialing ? (
                       
-                      {/* Live Call Pulsing waveform when speaker is active */}
-                      <div className="h-28 flex flex-col items-center justify-center border-b border-white/5 pb-2 relative">
-                        <div className="flex items-end justify-center gap-1.5 h-16 w-full max-w-xs">
-                          {[
-                            { delay: "0.1s", h: "12" },
-                            { delay: "0.2s", h: "32" },
-                            { delay: "0.4s", h: "16" },
-                            { delay: "0s",   h: "48" },
-                            { delay: "0.3s", h: "20" },
-                            { delay: "0.5s", h: "36" },
-                            { delay: "0.1s", h: "16" },
-                            { delay: "0s",   h: "48" },
-                            { delay: "0.2s", h: "12" },
-                            { delay: "0.4s", h: "28" },
-                            { delay: "0.1s", h: "16" },
-                            { delay: "0.3s", h: "8" },
-                          ].map((bar, i) => (
-                            <motion.span 
-                              key={i}
-                              className={`w-1 rounded-full bg-gradient-to-t ${isSpeaking ? 'from-[#1AD1B5] to-[#855df6]' : 'from-gray-700 to-gray-600'}`}
+                      /* IDLE DIAL SCREEN */
+                      <motion.div 
+                        key="idle-screen"
+                        initial={{ opacity: 0, scale: 0.97 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.97 }}
+                        transition={{ duration: 0.28, ease: "easeOut" }}
+                        className="flex-1 flex flex-col items-center justify-center text-center p-4"
+                      >
+                        <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-inner relative group cursor-pointer" onClick={handleDial}>
+                          <div className="absolute inset-2 rounded-full bg-[#1AD1B5]/10 opacity-40 group-hover:scale-125 transition-transform duration-500" />
+                          <Phone className="w-8 h-8 text-[#1AD1B5] group-hover:rotate-12 transition-transform duration-300" />
+                        </div>
+                        <h4 className="text-xl font-bold font-sans uppercase text-white mb-2 leading-none">Sparky is Ready</h4>
+                        <p className="text-xs text-gray-400 max-w-sm leading-relaxed mb-6">
+                          Test Sparky's voice answering, troubleshooting questions, and dispatch routines live. Connect your feed instantly below.
+                        </p>
+
+                        <div className="space-y-4">
+                          <button 
+                            onClick={handleDial}
+                            className="bg-gradient-to-r from-[#1AD1B5] via-[#2ba8b5] to-[#855df6] text-black font-extrabold uppercase text-xs tracking-wider py-4 px-8 rounded-xl hover:brightness-110 shadow-lg shadow-teal-500/10 cursor-pointer text-center flex items-center gap-2 justify-center"
+                            data-hover="true"
+                          >
+                            <Phone className="w-4 h-4 fill-black" />
+                            <span>Place Demo Call</span>
+                          </button>
+
+                          <label className="flex items-center justify-center gap-2.5 text-xs text-gray-400 cursor-pointer mb-2">
+                            <input 
+                              type="checkbox" 
+                              checked={voiceEnabled}
+                              onChange={(e) => setVoiceEnabled(e.target.checked)}
+                              className="rounded accent-[#1AD1B5] border-white/10 w-4 h-4"
+                            />
+                            <span>Voice Reader Enabled (Hear Sparky Speak)</span>
+                          </label>
+                        </div>
+                      </motion.div>
+
+                    ) : isDialing ? (
+                      
+                      /* DIALING SCREEN */
+                      <motion.div 
+                        key="dialing-screen"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.28, ease: "easeOut" }}
+                        className="flex-1 flex flex-col items-center justify-center text-center"
+                      >
+                        <div className="w-20 h-20 rounded-full bg-[#1AD1B5]/10 border border-[#1AD1B5]/40 flex items-center justify-center mb-6 animate-pulse">
+                          <Phone className="w-8 h-8 text-[#1AD1B5] animate-bounce" />
+                        </div>
+                        <h4 className="text-lg font-bold font-mono uppercase text-[#1AD1B5] tracking-widest mb-1.5 animate-pulse">Dialing...</h4>
+                        <p className="text-xs text-gray-400 font-mono">Connecting secure playground line...</p>
+                      </motion.div>
+
+                    ) : (
+                      
+                      /* ACTIVE CALL SCREEN */
+                      <motion.div 
+                        key="active-screen"
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.98 }}
+                        transition={{ duration: 0.32, ease: "easeOut" }}
+                        className="flex-1 flex flex-col justify-between h-full relative overflow-hidden"
+                      >
+                        
+                        {/* Live Call Pulsing waveform when speaker is active */}
+                        <div className="h-28 flex flex-col items-center justify-center border-b border-white/5 pb-2 relative">
+                          <div className="flex items-end justify-center gap-1.5 h-16 w-full max-w-xs">
+                            {[
+                              { delay: "0.1s", h: "12" },
+                              { delay: "0.2s", h: "32" },
+                              { delay: "0.4s", h: "16" },
+                              { delay: "0s",   h: "48" },
+                              { delay: "0.3s", h: "20" },
+                              { delay: "0.5s", h: "36" },
+                              { delay: "0.1s", h: "16" },
+                              { delay: "0s",   h: "48" },
+                              { delay: "0.2s", h: "12" },
+                              { delay: "0.4s", h: "28" },
+                              { delay: "0.1s", h: "16" },
+                              { delay: "0.3s", h: "8" },
+                            ].map((bar, i) => (
+                              <motion.span 
+                                key={i}
+                                className={`w-1 rounded-full bg-gradient-to-t ${isSpeaking ? 'from-[#1AD1B5] to-[#855df6]' : 'from-gray-700 to-gray-600'}`}
+                                animate={{ 
+                                  scaleY: isSpeaking ? [0.2, 1, 0.2] : isListening ? Math.sin(i) * 0.4 + 0.3 : 0.2 
+                                }}
+                                transition={{ 
+                                  duration: 0.8, 
+                                  repeat: Infinity, 
+                                  repeatType: "reverse", 
+                                  delay: i * 0.05 
+                                }}
+                                style={{ 
+                                  height: `${bar.h}px`, 
+                                  transformOrigin: "bottom",
+                                  opacity: isSpeaking || isListening ? 1 : 0.4
+                                }}
+                              />
+                            ))}
+                          </div>
+                          
+                          <div className="text-[10px] font-mono tracking-wider font-semibold text-gray-400 uppercase mt-4">
+                            {isSpeaking ? "SPARKY speaking aloud" : isListening ? "SPEECH CAPTURE ON..." : "Awaiting your voice response..."}
+                          </div>
+                        </div>
+
+                        {/* Transcripts module box */}
+                        <div ref={chatContainerRef} className="flex-1 overflow-y-auto my-2 p-2 space-y-3 max-h-48 rounded-xl scroll-smooth">
+                          {transcript.map((msg, idx) => (
+                            <motion.div
+                              key={idx}
+                              initial={{ 
+                                opacity: 0, 
+                                y: 10, 
+                                scale: 0.96,
+                                x: msg.role === 'user' ? 8 : -8 
+                              }}
                               animate={{ 
-                                scaleY: isSpeaking ? [0.2, 1, 0.2] : isListening ? Math.sin(i) * 0.4 + 0.3 : 0.2 
+                                opacity: 1, 
+                                y: 0, 
+                                scale: 1,
+                                x: 0 
                               }}
                               transition={{ 
-                                duration: 0.8, 
-                                repeat: Infinity, 
-                                repeatType: "reverse", 
-                                delay: i * 0.05 
+                                duration: 0.28, 
+                                ease: [0.22, 1, 0.36, 1] 
                               }}
-                              style={{ 
-                                height: `${bar.h}px`, 
-                                transformOrigin: "bottom",
-                                opacity: isSpeaking || isListening ? 1 : 0.4
-                              }}
-                            />
+                              className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                            >
+                              <span className="text-[9px] font-mono text-gray-500 mb-0.5 px-2">{msg.role === 'user' ? 'Caller' : 'Sparky'} • {msg.time}</span>
+                              <div
+                                className={`max-w-[85%] p-3 rounded-2xl text-[13px] leading-relaxed ${
+                                  msg.role === 'user'
+                                    ? 'bg-[#1AD1B5] text-black rounded-tr-none font-medium text-right'
+                                    : 'bg-white/5 text-gray-200 rounded-tl-none border border-white/5'
+                                }`}
+                              >
+                                {msg.text}
+                              </div>
+                            </motion.div>
+                          ))}
+
+                          {/* Real-time live speech feedback bubble */}
+                          {liveHeardSpeech && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              className="flex items-end flex-col animate-pulse"
+                            >
+                              <span className="text-[9px] font-mono text-[#1AD1B5] mb-0.5 px-2 flex items-center gap-1">
+                                <Mic className="w-2.5 h-2.5 animate-spin" /> Hearing you speak...
+                              </span>
+                              <div className="max-w-[90%] p-2.5 rounded-2xl rounded-tr-none bg-[#1AD1B5]/20 border border-[#1AD1B5]/40 text-white text-[12px] flex items-center gap-2">
+                                <span className="italic">"{liveHeardSpeech}"</span>
+                                <button
+                                  onClick={() => {
+                                    const txt = liveHeardSpeech;
+                                    stopListening();
+                                    sendCallMessage(txt);
+                                  }}
+                                  className="bg-[#1AD1B5] hover:bg-[#15bda3] text-black font-extrabold text-[10px] uppercase px-2 py-1 rounded-lg shrink-0 cursor-pointer"
+                                >
+                                  Send
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {isAgentReplying && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              className="flex items-start flex-col"
+                            >
+                              <span className="text-[9px] font-mono text-gray-400 mb-0.5 px-2 flex items-center gap-1">
+                                <Cpu className="w-2.5 h-2.5 text-[#1AD1B5] animate-spin" /> Sparky thinking...
+                              </span>
+                              <div className="bg-white/5 border border-white/5 px-4 py-3 rounded-2xl rounded-tl-none flex gap-1.5 items-center">
+                                <span className="w-2 h-2 bg-[#1AD1B5] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-2 h-2 bg-[#1AD1B5] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-2 h-2 bg-[#1AD1B5] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                              </div>
+                            </motion.div>
+                          )}
+                          <div ref={chatEndRef} />
+                        </div>
+
+                        {/* Quick Scenario Prompt Chips */}
+                        <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1 text-[10px] font-mono">
+                          {[
+                            "Need a 200A subpanel quote",
+                            "Tripped breaker emergency",
+                            "EV charger installation"
+                          ].map((prompt, pIdx) => (
+                            <button
+                              key={pIdx}
+                              onClick={() => sendCallMessage(prompt)}
+                              disabled={isAgentReplying || isSpeaking}
+                              className="bg-white/[0.04] hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 px-2.5 py-1 rounded-lg whitespace-nowrap transition-colors cursor-pointer disabled:opacity-30 shrink-0"
+                            >
+                              + {prompt}
+                            </button>
                           ))}
                         </div>
-                        
-                        <div className="text-[10px] font-mono tracking-wider font-semibold text-gray-400 uppercase mt-4">
-                          {isSpeaking ? "SPARKY speaking aloud" : isListening ? "SPEECH CAPTURE ON..." : "Awaiting your voice response..."}
-                        </div>
-                      </div>
 
-                      {/* Transcripts module box */}
-                      <div ref={chatContainerRef} className="flex-1 overflow-y-auto my-2 p-2 space-y-3 max-h-48 rounded-xl scroll-smooth">
-                        {transcript.map((msg, idx) => (
-                          <div
-                            key={idx}
-                            className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-                          >
-                            <span className="text-[9px] font-mono text-gray-500 mb-0.5 px-2">{msg.role === 'user' ? 'Caller' : 'Sparky'} • {msg.time}</span>
-                            <div
-                              className={`max-w-[85%] p-3 rounded-2xl text-[13px] leading-relaxed ${
-                                msg.role === 'user'
-                                  ? 'bg-[#1AD1B5] text-black rounded-tr-none font-medium text-right'
-                                  : 'bg-white/5 text-gray-200 rounded-tl-none border border-white/5'
-                              }`}
+                        {/* Caller Audio Interface controls */}
+                        <div className="border-t border-white/5 pt-3">
+                          <div className="flex gap-2">
+                            
+                            {/* Microphone Voice toggler */}
+                            <button
+                              onClick={toggleSpeechListen}
+                              className={`p-3 rounded-2xl border transition-all duration-300 relative group flex items-center justify-center shrink-0
+                                ${isListening 
+                                  ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse' 
+                                  : 'bg-white/5 text-[#1AD1B5] border-white/10 hover:bg-white/10'
+                                }`}
+                              title="Speak with microphone"
+                              data-hover="true"
                             >
-                              {msg.text}
-                            </div>
-                          </div>
-                        ))}
+                              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                            </button>
 
-                        {/* Real-time live speech feedback bubble */}
-                        {liveHeardSpeech && (
-                          <div className="flex items-end flex-col animate-pulse">
-                            <span className="text-[9px] font-mono text-[#1AD1B5] mb-0.5 px-2 flex items-center gap-1">
-                              <Mic className="w-2.5 h-2.5 animate-spin" /> Hearing you speak...
-                            </span>
-                            <div className="max-w-[90%] p-2.5 rounded-2xl rounded-tr-none bg-[#1AD1B5]/20 border border-[#1AD1B5]/40 text-white text-[12px] flex items-center gap-2">
-                              <span className="italic">"{liveHeardSpeech}"</span>
-                              <button
-                                onClick={() => {
-                                  const txt = liveHeardSpeech;
-                                  stopListening();
-                                  sendCallMessage(txt);
+                            {/* Text dispatcher standard typed keyboard fallback option */}
+                            <div className="flex-1 relative flex items-center">
+                              <input
+                                type="text"
+                                value={textInput}
+                                onChange={(e) => setTextInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    sendCallMessage(textInput);
+                                  }
                                 }}
-                                className="bg-[#1AD1B5] hover:bg-[#15bda3] text-black font-extrabold text-[10px] uppercase px-2 py-1 rounded-lg shrink-0 cursor-pointer"
-                              >
-                                Send
-                              </button>
+                                placeholder={isListening ? "Listening... Speak now..." : "Speak or type your message..."}
+                                disabled={isAgentReplying}
+                                className="w-full bg-white/5 text-white text-xs placeholder-white/30 rounded-2xl px-4 py-3 border border-white/10 focus:outline-none focus:border-[#1AD1B5]/50 transition-colors pr-10"
+                              />
+                              {textInput.trim() && (
+                                <button
+                                  onClick={() => sendCallMessage(textInput)}
+                                  className="absolute right-3 p-1 rounded-lg text-[#1AD1B5] hover:text-white transition-colors cursor-pointer"
+                                >
+                                  <ChevronRight className="w-5 h-5" />
+                                </button>
+                              )}
                             </div>
+
+                            {/* Voice Speak toggle reader */}
+                            <button
+                              onClick={() => setIsMuted(!isMuted)}
+                              className={`p-3 rounded-2xl border transition-all duration-300 flex items-center justify-center shrink-0
+                                ${isMuted
+                                  ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                  : 'bg-white/5 text-[#1AD1B5] border-white/10 hover:bg-white/10'
+                                }`}
+                              title={isMuted ? "Unmute Bot Voice" : "Mute Bot Voice"}
+                              data-hover="true"
+                            >
+                              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                            </button>
+
+                            {/* Hangup Trigger */}
+                            <button
+                              onClick={handleHangup}
+                              className="bg-red-600 hover:bg-red-500 text-white p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shrink-0 cursor-pointer shadow-lg shadow-red-500/20"
+                              title="Disconnect demo line"
+                              data-hover="true"
+                            >
+                              <PhoneOff className="w-4 h-4" />
+                            </button>
+
                           </div>
-                        )}
-
-                        {isAgentReplying && (
-                          <div className="flex items-start flex-col">
-                            <span className="text-[9px] font-mono text-gray-400 mb-0.5 px-2 flex items-center gap-1">
-                              <Cpu className="w-2.5 h-2.5 text-[#1AD1B5] animate-spin" /> Sparky thinking...
-                            </span>
-                            <div className="bg-white/5 border border-white/5 px-4 py-3 rounded-2xl rounded-tl-none flex gap-1.5 items-center">
-                              <span className="w-2 h-2 bg-[#1AD1B5] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                              <span className="w-2 h-2 bg-[#1AD1B5] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                              <span className="w-2 h-2 bg-[#1AD1B5] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                            </div>
-                          </div>
-                        )}
-                        <div ref={chatEndRef} />
-                      </div>
-
-                      {/* Quick Scenario Prompt Chips */}
-                      <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1 text-[10px] font-mono">
-                        {[
-                          "Need a 200A subpanel quote",
-                          "Tripped breaker emergency",
-                          "EV charger installation"
-                        ].map((prompt, pIdx) => (
-                          <button
-                            key={pIdx}
-                            onClick={() => sendCallMessage(prompt)}
-                            disabled={isAgentReplying || isSpeaking}
-                            className="bg-white/[0.04] hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 px-2.5 py-1 rounded-lg whitespace-nowrap transition-colors cursor-pointer disabled:opacity-30 shrink-0"
-                          >
-                            + {prompt}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Caller Audio Interface controls */}
-                      <div className="border-t border-white/5 pt-3">
-                        <div className="flex gap-2">
-                          
-                          {/* Microphone Voice toggler */}
-                          <button
-                            onClick={toggleSpeechListen}
-                            className={`p-3 rounded-2xl border transition-all duration-300 relative group flex items-center justify-center shrink-0
-                              ${isListening 
-                                ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse' 
-                                : 'bg-white/5 text-[#1AD1B5] border-white/10 hover:bg-white/10'
-                              }`}
-                            title="Speak with microphone"
-                            data-hover="true"
-                          >
-                            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                          </button>
-
-                          {/* Text dispatcher standard typed keyboard fallback option */}
-                          <div className="flex-1 relative flex items-center">
-                            <input
-                              type="text"
-                              value={textInput}
-                              onChange={(e) => setTextInput(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  sendCallMessage(textInput);
-                                }
-                              }}
-                              placeholder={isListening ? "Listening... Speak now..." : "Speak or type your message..."}
-                              disabled={isAgentReplying}
-                              className="w-full bg-white/5 text-white text-xs placeholder-white/30 rounded-2xl px-4 py-3 border border-white/10 focus:outline-none focus:border-[#1AD1B5]/50 transition-colors pr-10"
-                            />
-                            {textInput.trim() && (
-                              <button
-                                onClick={() => sendCallMessage(textInput)}
-                                className="absolute right-3 p-1 rounded-lg text-[#1AD1B5] hover:text-white transition-colors cursor-pointer"
-                              >
-                                <ChevronRight className="w-5 h-5" />
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Voice Speak toggle reader */}
-                          <button
-                            onClick={() => setIsMuted(!isMuted)}
-                            className={`p-3 rounded-2xl border transition-all duration-300 flex items-center justify-center shrink-0
-                              ${isMuted
-                                ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                                : 'bg-white/5 text-[#1AD1B5] border-white/10 hover:bg-white/10'
-                              }`}
-                            title={isMuted ? "Unmute Bot Voice" : "Mute Bot Voice"}
-                            data-hover="true"
-                          >
-                            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                          </button>
-
-                          {/* Hangup Trigger */}
-                          <button
-                            onClick={handleHangup}
-                            className="bg-red-600 hover:bg-red-500 text-white p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shrink-0 cursor-pointer shadow-lg shadow-red-500/20"
-                            title="Disconnect demo line"
-                            data-hover="true"
-                          >
-                            <PhoneOff className="w-4 h-4" />
-                          </button>
-
                         </div>
-                      </div>
 
-                    </div>
-                  )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Simulated Phone Bar bottom */}
@@ -1747,7 +1809,7 @@ const App: React.FC = () => {
                 </div>
 
               </div>
-            </div>
+            </motion.div>
 
           </div>
 

@@ -13,22 +13,21 @@ import {
   ChevronRight, 
   ChevronLeft, 
   AlertTriangle, 
-  Target, 
-  Cpu, 
-  Activity, 
   Workflow, 
   Check, 
-  Zap,
   PhoneCall,
-  Lock,
-  Layers,
-  ArrowUpRight
+  Upload,
+  Maximize,
+  Minimize,
+  RefreshCw,
+  Sliders
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { saveVideoBlob, getVideoBlob, clearVideoBlob } from '../services/videoStorage';
 
 interface VideoSectionProps {
   youtubeVideoId?: string; // YouTube ID or URL
-  videoFileUrl?: string;   // Hosted video file URL (e.g. /philosophy-video.mp4)
+  videoFileUrl?: string;   // Hosted video file URL (e.g. /assets/mo-blind-video.mp4)
   videoTitle?: string;
   videoDescription?: string;
   onBookCall?: () => void;
@@ -38,7 +37,7 @@ interface VideoSectionProps {
 const VIDEO_SCENES = [
   {
     id: 1,
-    duration: 7, // seconds
+    duration: 7,
     tag: "SCENE 01 • THE PROBLEM",
     badgeColor: "from-red-500/20 to-orange-500/20 text-rose-400 border-rose-500/30",
     headline: "MOST AI PROJECTS FAIL",
@@ -123,20 +122,79 @@ const VIDEO_SCENES = [
 ];
 
 export const VideoSection: React.FC<VideoSectionProps> = ({
-  youtubeVideoId = "",
+  youtubeVideoId = "https://youtu.be/DRgf5DnR3w0?si=mTlYbXzerDQbAmSI",
   videoFileUrl = "",
   videoTitle = "We Don't Sell AI. We Sell Business Outcomes.",
   videoDescription = "Watch our video on how Mo-Blind diagnoses operational bottlenecks before deploying AI voice agents, automations, or custom software.",
   onBookCall
 }) => {
+  // Video Source States
+  const [activeVideoSrc, setActiveVideoSrc] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [hasNativeVideo, setHasNativeVideo] = useState(false);
+
+  // Native Video Player States
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Slideshow Fallback States
   const [currentSceneIdx, setCurrentSceneIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [sceneProgress, setSceneProgress] = useState(0);
   const [isAudioMuted, setIsAudioMuted] = useState(true);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Clean YouTube ID extraction
+  // 1. Initialize Video from IndexedDB or props
+  useEffect(() => {
+    let objectUrlToRevoke: string | null = null;
+
+    async function initVideoSource() {
+      // Check IndexedDB for previously saved video blob
+      const storedBlob = await getVideoBlob();
+      if (storedBlob) {
+        const url = URL.createObjectURL(storedBlob);
+        objectUrlToRevoke = url;
+        setActiveVideoSrc(url);
+        setHasNativeVideo(true);
+        return;
+      }
+
+      // Check videoFileUrl prop or static asset
+      if (videoFileUrl) {
+        setActiveVideoSrc(videoFileUrl);
+        setHasNativeVideo(true);
+        return;
+      }
+
+      // Try checking if /assets/mo-blind-video.mp4 is available
+      try {
+        const res = await fetch('/assets/mo-blind-video.mp4', { method: 'HEAD' });
+        if (res.ok) {
+          setActiveVideoSrc('/assets/mo-blind-video.mp4');
+          setHasNativeVideo(true);
+        }
+      } catch {}
+    }
+
+    initVideoSource();
+
+    return () => {
+      if (objectUrlToRevoke) {
+        URL.revokeObjectURL(objectUrlToRevoke);
+      }
+    };
+  }, [videoFileUrl]);
+
+  // Clean YouTube ID extraction if YouTube is provided
   const cleanYoutubeId = React.useMemo(() => {
     if (!youtubeVideoId || youtubeVideoId.includes("dQw4w9WgXcQ")) return "";
     const match = youtubeVideoId.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
@@ -147,7 +205,125 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
     ? `https://www.youtube-nocookie.com/embed/${cleanYoutubeId}?autoplay=1&rel=0&modestbranding=1`
     : null;
 
-  // Sound generator for subtle high-tech transition tones
+  // File Upload / Drop handler for MP4 video
+  const handleVideoFile = async (file: File) => {
+    if (!file || !file.type.startsWith('video/')) {
+      alert("Please upload a valid MP4 or WebM video file.");
+      return;
+    }
+
+    try {
+      await saveVideoBlob(file);
+      const url = URL.createObjectURL(file);
+      setActiveVideoSrc(url);
+      setHasNativeVideo(true);
+      setIsPlaying(true);
+      if (videoRef.current) {
+        videoRef.current.src = url;
+        videoRef.current.play().catch(() => {});
+      }
+    } catch (err) {
+      console.error("Failed to cache video in IndexedDB:", err);
+      const url = URL.createObjectURL(file);
+      setActiveVideoSrc(url);
+      setHasNativeVideo(true);
+      setIsPlaying(true);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleVideoFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleVideoFile(e.target.files[0]);
+    }
+  };
+
+  // Video Native Playback Handlers
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+      setIsPlaying(true);
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    setCurrentTime(time);
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+    }
+  };
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setVolume(val);
+    if (videoRef.current) {
+      videoRef.current.volume = val;
+      videoRef.current.muted = val === 0;
+      setIsMuted(val === 0);
+    }
+  };
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
+
+  const handleMouseMove = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setTimeout(() => {
+      if (isPlaying) {
+        setShowControls(false);
+      }
+    }, 2800);
+  };
+
+  // Helper for formatting time (mm:ss)
+  const formatTime = (secs: number) => {
+    if (isNaN(secs)) return "0:00";
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // Sound generator for subtle high-tech transition tones (Slideshow fallback)
   const playTechTone = (freq: number, type: OscillatorType = 'sine', dur: number = 0.15) => {
     if (isAudioMuted) return;
     try {
@@ -171,12 +347,12 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
     } catch (e) {}
   };
 
-  // Auto-progress animation timer when playing built-in video slideshow
+  // Auto-progress timer for interactive slideshow fallback
   useEffect(() => {
-    if (!isPlaying || embedUrl || videoFileUrl || isPaused) return;
+    if (!isPlaying || hasNativeVideo || embedUrl || isPaused) return;
 
     const currentScene = VIDEO_SCENES[currentSceneIdx];
-    const tickInterval = 50; // 50ms tick
+    const tickInterval = 50;
     const totalTicks = (currentScene.duration * 1000) / tickInterval;
 
     const interval = setInterval(() => {
@@ -192,7 +368,7 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
     }, tickInterval);
 
     return () => clearInterval(interval);
-  }, [isPlaying, currentSceneIdx, isPaused, embedUrl, videoFileUrl, isAudioMuted]);
+  }, [isPlaying, currentSceneIdx, isPaused, hasNativeVideo, embedUrl, isAudioMuted]);
 
   const currentScene = VIDEO_SCENES[currentSceneIdx];
 
@@ -209,20 +385,35 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
   };
 
   const handleRestart = () => {
-    setCurrentSceneIdx(0);
-    setSceneProgress(0);
-    playTechTone(520, 'sine', 0.2);
+    if (hasNativeVideo && videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play();
+      setIsPlaying(true);
+    } else {
+      setCurrentSceneIdx(0);
+      setSceneProgress(0);
+      playTechTone(520, 'sine', 0.2);
+    }
   };
 
   return (
     <section id="video-overview" className="relative z-10 py-16 md:py-24 bg-[#070A10] border-y border-white/5 overflow-hidden">
+      {/* Hidden File Input */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileInputChange} 
+        accept="video/mp4,video/webm,video/*" 
+        className="hidden" 
+      />
+
       {/* Background ambient lighting */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-[#1AD1B5]/10 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
         
         {/* Header Title Section */}
-        <div className="text-center max-w-3xl mx-auto mb-10">
+        <div className="text-center max-w-3xl mx-auto mb-8">
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -259,32 +450,163 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
 
         {/* Video Screen Container */}
         <motion.div 
+          ref={containerRef}
           initial={{ opacity: 0, scale: 0.97 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="relative max-w-4xl mx-auto rounded-3xl overflow-hidden border border-white/10 bg-[#0A0D15] shadow-2xl shadow-teal-950/40 group"
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={handleDrop}
+          onMouseMove={handleMouseMove}
+          className={`relative max-w-4xl mx-auto rounded-3xl overflow-hidden border transition-all duration-300 bg-[#0A0D15] shadow-2xl shadow-teal-950/40 group ${
+            isDragOver ? 'border-[#1AD1B5] ring-4 ring-[#1AD1B5]/30' : 'border-white/10'
+          }`}
         >
+          {/* Top Quick Actions Bar (Upload / Switcher) */}
+          <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-black/70 hover:bg-[#1AD1B5] text-gray-300 hover:text-black border border-white/15 hover:border-transparent px-3 py-1.5 rounded-xl backdrop-blur-md text-[11px] font-mono font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 shadow-lg cursor-pointer"
+              title="Replace or upload attached MP4 video"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>{hasNativeVideo ? 'Replace Video' : 'Load Video (.mp4)'}</span>
+            </button>
+
+            {hasNativeVideo && (
+              <button
+                onClick={async () => {
+                  await clearVideoBlob();
+                  setActiveVideoSrc('');
+                  setHasNativeVideo(false);
+                  setIsPlaying(false);
+                }}
+                className="bg-black/70 hover:bg-red-500/20 text-gray-400 hover:text-red-300 border border-white/15 px-2.5 py-1.5 rounded-xl backdrop-blur-md text-[11px] font-mono transition-all duration-300 cursor-pointer"
+                title="Reset to interactive presentation"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           {/* 16:9 Video Canvas */}
           <div className="relative aspect-video w-full flex items-center justify-center overflow-hidden bg-black select-none">
             
-            {/* Case 1: External YouTube Embed */}
-            {isPlaying && embedUrl ? (
+            {/* Case 1: Native MP4 Video File Player */}
+            {hasNativeVideo && activeVideoSrc ? (
+              <div className="relative w-full h-full flex items-center justify-center bg-black">
+                <video
+                  ref={videoRef}
+                  src={activeVideoSrc}
+                  playsInline
+                  onTimeUpdate={handleTimeUpdate}
+                  onLoadedMetadata={handleLoadedMetadata}
+                  onEnded={() => setIsPlaying(false)}
+                  onClick={togglePlay}
+                  className="w-full h-full object-contain cursor-pointer"
+                />
+
+                {/* Big Center Play Overlay when Paused */}
+                {!isPlaying && (
+                  <div 
+                    onClick={togglePlay}
+                    className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer backdrop-blur-[2px] transition-all"
+                  >
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#1AD1B5] to-[#855df6] flex items-center justify-center text-black shadow-2xl shadow-teal-500/50 hover:scale-110 transition-transform">
+                      <Play className="w-9 h-9 fill-black ml-1 text-black" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Sleek Video Controls Bar */}
+                <div 
+                  className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity duration-300 flex flex-col gap-2 z-20 ${
+                    showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                >
+                  {/* Progress Scrub Bar */}
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 100}
+                    step="0.1"
+                    value={currentTime}
+                    onChange={handleSeek}
+                    className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[#1AD1B5] hover:h-2 transition-all"
+                  />
+
+                  <div className="flex items-center justify-between text-xs font-mono text-white">
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={togglePlay} 
+                        className="hover:text-[#1AD1B5] transition-colors p-1"
+                      >
+                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
+                      </button>
+
+                      <button 
+                        onClick={handleRestart} 
+                        className="text-gray-400 hover:text-white transition-colors p-1"
+                        title="Restart Video"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={toggleMute} 
+                          className="hover:text-[#1AD1B5] transition-colors p-1"
+                        >
+                          {isMuted || volume === 0 ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+                        </button>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={isMuted ? 0 : volume}
+                          onChange={handleVolumeChange}
+                          className="w-16 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[#1AD1B5]"
+                        />
+                      </div>
+
+                      <span className="text-[11px] text-gray-300">
+                        {formatTime(currentTime)} / {formatTime(duration)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          if (videoRef.current) {
+                            videoRef.current.playbackRate = videoRef.current.playbackRate === 1 ? 1.25 : videoRef.current.playbackRate === 1.25 ? 1.5 : 1;
+                          }
+                        }}
+                        className="text-[11px] text-gray-300 hover:text-[#1AD1B5] px-2 py-0.5 rounded bg-white/10"
+                      >
+                        {videoRef.current?.playbackRate || 1}x
+                      </button>
+
+                      <button 
+                        onClick={toggleFullscreen} 
+                        className="hover:text-[#1AD1B5] transition-colors p-1"
+                      >
+                        {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            ) : isPlaying && embedUrl ? (
+              /* Case 2: External YouTube Embed */
               <iframe
                 src={embedUrl}
                 title={videoTitle}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 className="w-full h-full border-0"
-              />
-            ) : isPlaying && videoFileUrl ? (
-              /* Case 2: Direct Video File URL (e.g. mp4) */
-              <video
-                src={videoFileUrl}
-                controls
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover"
               />
             ) : isPlaying ? (
               /* Case 3: Interactive Full-Motion 6-Scene Philosophy Video Player */
@@ -385,8 +707,6 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
                               <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                             ) : currentScene.theme === 'warning' ? (
                               <Workflow className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                            ) : currentScene.theme === 'blue' ? (
-                              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                             ) : (
                               <Check className="w-3.5 h-3.5 text-[#1AD1B5] shrink-0" />
                             )}
@@ -432,7 +752,7 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
                     />
                   </div>
 
-                  {/* Scene Pills & Navigation */}
+                  {/* Scene Navigation */}
                   <div className="flex items-center justify-between">
                     <button
                       onClick={handlePrevScene}
@@ -441,7 +761,6 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
                       <ChevronLeft className="w-4 h-4" /> Prev
                     </button>
 
-                    {/* Step Dots */}
                     <div className="flex gap-2">
                       {VIDEO_SCENES.map((_, idx) => (
                         <button
@@ -471,33 +790,37 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
 
               </div>
             ) : (
-              /* Case 4: Video Cover Card (Click to Play) */
-              <div className="relative w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#070C15] via-[#090F1B] to-[#04060A]">
+              /* Case 4: Video Cover Card (Click to Play or Drop Video) */
+              <div 
+                onClick={() => {
+                  if (hasNativeVideo) {
+                    setIsPlaying(true);
+                    videoRef.current?.play();
+                  } else {
+                    setIsPlaying(true);
+                    playTechTone(500, 'sine', 0.2);
+                  }
+                }}
+                className="relative w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#070C15] via-[#090F1B] to-[#04060A] cursor-pointer"
+              >
                 
                 {/* Cybernetic glowing mesh */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1AD1B5]/20 via-transparent to-transparent opacity-70" />
-                <div className="absolute inset-0 opacity-15 bg-[linear-gradient(to_right,#1AD1B518_1px,transparent_1px),linear-gradient(to_bottom,#1AD1B518_1px,transparent_1px)] bg-[size:32px_32px]" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1AD1B5]/20 via-transparent to-transparent opacity-70 pointer-events-none" />
+                <div className="absolute inset-0 opacity-15 bg-[linear-gradient(to_right,#1AD1B518_1px,transparent_1px),linear-gradient(to_bottom,#1AD1B518_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
 
                 {/* Content Overlay */}
                 <div className="relative z-10 text-center flex flex-col items-center max-w-xl">
                   
                   {/* Glowing Play Button */}
-                  <button
-                    onClick={() => {
-                      setIsPlaying(true);
-                      playTechTone(500, 'sine', 0.2);
-                    }}
-                    className="relative group/btn cursor-pointer mb-6"
-                    aria-label="Play Video Presentation"
-                  >
+                  <div className="relative group/btn mb-6">
                     <span className="absolute -inset-4 rounded-full bg-[#1AD1B5]/30 blur-lg group-hover/btn:bg-[#1AD1B5]/60 transition-all duration-300 animate-pulse" />
                     <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-[#1AD1B5] via-[#31a2b0] to-[#855df6] flex items-center justify-center text-black shadow-2xl shadow-teal-500/40 group-hover/btn:scale-110 transition-transform duration-300">
                       <Play className="w-7 h-7 sm:w-9 sm:h-9 fill-black ml-1 text-black" />
                     </div>
-                  </button>
+                  </div>
 
                   <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.2em] text-[#1AD1B5] font-bold mb-2 bg-[#1AD1B5]/10 px-3.5 py-1 rounded-full border border-[#1AD1B5]/20">
-                    Watch Video Presentation (60s)
+                    Watch Video Presentation
                   </span>
 
                   <h3 className="text-xl sm:text-3xl font-extrabold text-white uppercase tracking-tight font-sans">
@@ -510,9 +833,14 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
                   <p className="text-xs text-gray-400 mt-2 line-clamp-2 max-w-md font-light">
                     Explore our diagnostic approach: We triage and streamline your workflows before automating them with AI voice dispatchers and custom software.
                   </p>
+
+                  <div className="mt-4 flex items-center gap-2 text-[11px] font-mono text-gray-400 bg-white/5 border border-white/10 px-3 py-1 rounded-lg">
+                    <Upload className="w-3 h-3 text-[#1AD1B5]" />
+                    <span>Drop your attached MP4 file here or click Load Video</span>
+                  </div>
                 </div>
 
-                {/* Corner Information Badges */}
+                {/* Corner Badges */}
                 <div className="absolute top-4 left-4 hidden sm:flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[10px] font-mono text-gray-300">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#1AD1B5]" />
                   <span>The Diagnostic DNA</span>
@@ -520,7 +848,7 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
 
                 <div className="absolute bottom-4 right-4 hidden sm:flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[10px] font-mono text-gray-300">
                   <Sparkles className="w-3.5 h-3.5 text-[#1AD1B5]" />
-                  <span>6 Dynamic Scenes</span>
+                  <span>HD Video Player</span>
                 </div>
               </div>
             )}
