@@ -153,41 +153,57 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
   const [isAudioMuted, setIsAudioMuted] = useState(true);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // 1. Initialize Video from IndexedDB or props
+  // 1. Initialize Video from Server API, IndexedDB or props
   useEffect(() => {
+    let isMounted = true;
     let objectUrlToRevoke: string | null = null;
 
     async function initVideoSource() {
-      // Check IndexedDB for previously saved video blob
+      // 1. First check if server has a permanently uploaded MP4
+      try {
+        const res = await fetch('/api/video-status');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.hasServerVideo && data.url && isMounted) {
+            setActiveVideoSrc(data.url);
+            setHasNativeVideo(true);
+            return;
+          }
+        }
+      } catch {}
+
+      // 2. Check direct static asset /assets/mo-blind-video.mp4
+      try {
+        const res = await fetch('/assets/mo-blind-video.mp4', { method: 'HEAD' });
+        if (res.ok && isMounted) {
+          setActiveVideoSrc('/assets/mo-blind-video.mp4');
+          setHasNativeVideo(true);
+          return;
+        }
+      } catch {}
+
+      // 3. Check videoFileUrl prop
+      if (videoFileUrl && isMounted) {
+        setActiveVideoSrc(videoFileUrl);
+        setHasNativeVideo(true);
+        return;
+      }
+
+      // 4. Check IndexedDB as fallback
       const storedBlob = await getVideoBlob();
-      if (storedBlob) {
+      if (storedBlob && isMounted) {
         const url = URL.createObjectURL(storedBlob);
         objectUrlToRevoke = url;
         setActiveVideoSrc(url);
         setHasNativeVideo(true);
         return;
       }
-
-      // Check videoFileUrl prop or static asset
-      if (videoFileUrl) {
-        setActiveVideoSrc(videoFileUrl);
-        setHasNativeVideo(true);
-        return;
-      }
-
-      // Try checking if /assets/mo-blind-video.mp4 is available
-      try {
-        const res = await fetch('/assets/mo-blind-video.mp4', { method: 'HEAD' });
-        if (res.ok) {
-          setActiveVideoSrc('/assets/mo-blind-video.mp4');
-          setHasNativeVideo(true);
-        }
-      } catch {}
     }
 
     initVideoSource();
 
     return () => {
+      isMounted = false;
       if (objectUrlToRevoke) {
         URL.revokeObjectURL(objectUrlToRevoke);
       }
@@ -196,16 +212,16 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
 
   // Clean YouTube ID extraction if YouTube is provided
   const cleanYoutubeId = React.useMemo(() => {
-    if (!youtubeVideoId || youtubeVideoId.includes("dQw4w9WgXcQ")) return "";
+    if (!youtubeVideoId) return "DRgf5DnR3w0";
     const match = youtubeVideoId.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-    return match ? match[1] : youtubeVideoId;
+    return match ? match[1] : "DRgf5DnR3w0";
   }, [youtubeVideoId]);
 
   const embedUrl = cleanYoutubeId
-    ? `https://www.youtube-nocookie.com/embed/${cleanYoutubeId}?autoplay=1&rel=0&modestbranding=1`
+    ? `https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`
     : null;
 
-  // File Upload / Drop handler for MP4 video
+  // File Upload / Drop handler for MP4 video with Server Sync
   const handleVideoFile = async (file: File) => {
     if (!file || !file.type.startsWith('video/')) {
       alert("Please upload a valid MP4 or WebM video file.");
@@ -213,21 +229,39 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
     }
 
     try {
-      await saveVideoBlob(file);
-      const url = URL.createObjectURL(file);
-      setActiveVideoSrc(url);
+      // 1. Immediately create local URL for instant playback
+      const localUrl = URL.createObjectURL(file);
+      setActiveVideoSrc(localUrl);
       setHasNativeVideo(true);
       setIsPlaying(true);
       if (videoRef.current) {
-        videoRef.current.src = url;
+        videoRef.current.src = localUrl;
         videoRef.current.play().catch(() => {});
       }
+
+      // 2. Save locally in IndexedDB
+      await saveVideoBlob(file);
+
+      // 3. Upload to server so EVERY other device sees the video permanently
+      const formData = new FormData();
+      formData.append('video', file);
+      
+      const serverRes = await fetch('/api/upload-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type || 'video/mp4',
+        },
+        body: file,
+      });
+
+      if (serverRes.ok) {
+        const data = await serverRes.json();
+        if (data.url) {
+          setActiveVideoSrc(data.url);
+        }
+      }
     } catch (err) {
-      console.error("Failed to cache video in IndexedDB:", err);
-      const url = URL.createObjectURL(file);
-      setActiveVideoSrc(url);
-      setHasNativeVideo(true);
-      setIsPlaying(true);
+      console.warn("Video upload to server notice:", err);
     }
   };
 
@@ -477,13 +511,16 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
             {hasNativeVideo && (
               <button
                 onClick={async () => {
+                  try {
+                    await fetch('/api/upload-video', { method: 'DELETE' });
+                  } catch {}
                   await clearVideoBlob();
                   setActiveVideoSrc('');
                   setHasNativeVideo(false);
                   setIsPlaying(false);
                 }}
                 className="bg-black/70 hover:bg-red-500/20 text-gray-400 hover:text-red-300 border border-white/15 px-2.5 py-1.5 rounded-xl backdrop-blur-md text-[11px] font-mono transition-all duration-300 cursor-pointer"
-                title="Reset to interactive presentation"
+                title="Reset to default YouTube presentation"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
@@ -604,206 +641,34 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
               <iframe
                 src={embedUrl}
                 title={videoTitle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
                 className="w-full h-full border-0"
               />
-            ) : isPlaying ? (
-              /* Case 3: Interactive Full-Motion 6-Scene Philosophy Video Player */
-              <div className="relative w-full h-full flex flex-col justify-between p-6 sm:p-10 bg-gradient-to-br from-[#060A12] via-[#090E18] to-[#04060A] text-white">
-                
-                {/* Cyber Perspective Grid Overlay */}
-                <div className="absolute inset-0 opacity-20 pointer-events-none bg-[linear-gradient(to_right,#1AD1B518_1px,transparent_1px),linear-gradient(to_bottom,#1AD1B518_1px,transparent_1px)] bg-[size:32px_32px]" />
-                
-                {/* Top Control Bar */}
-                <div className="relative z-20 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-2.5 w-2.5 relative">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1AD1B5] opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#1AD1B5]"></span>
-                    </span>
-                    <span className="text-[11px] font-mono font-bold tracking-widest text-[#1AD1B5] uppercase">
-                      Scene {currentSceneIdx + 1} / {VIDEO_SCENES.length}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setIsAudioMuted(!isAudioMuted)}
-                      className="text-gray-400 hover:text-white text-xs font-mono p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                      title={isAudioMuted ? "Unmute Sound Effects" : "Mute Sound Effects"}
-                    >
-                      {isAudioMuted ? <VolumeX className="w-3.5 h-3.5 text-gray-400" /> : <Volume2 className="w-3.5 h-3.5 text-[#1AD1B5]" />}
-                    </button>
-
-                    <button
-                      onClick={() => setIsPaused(!isPaused)}
-                      className="text-gray-300 hover:text-white text-xs font-mono px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex items-center gap-1.5 cursor-pointer"
-                    >
-                      {isPaused ? <Play className="w-3 h-3 text-[#1AD1B5]" /> : <Pause className="w-3 h-3" />}
-                      <span className="hidden sm:inline">{isPaused ? "Resume" : "Pause"}</span>
-                    </button>
-
-                    <button
-                      onClick={handleRestart}
-                      className="text-gray-400 hover:text-white text-xs font-mono p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                      title="Restart Video"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Main Dynamic Video Slide Content */}
-                <div className="relative z-10 my-auto w-full max-w-2xl mx-auto text-center px-2">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={currentSceneIdx}
-                      initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 1.05, y: -15 }}
-                      transition={{ duration: 0.35, ease: "easeOut" }}
-                      className="flex flex-col items-center"
-                    >
-                      {/* Scene Badge */}
-                      <span className={`text-[10px] sm:text-xs font-mono font-extrabold uppercase tracking-widest px-3 py-1 rounded-full border bg-gradient-to-r ${currentScene.badgeColor} mb-4`}>
-                        {currentScene.tag}
-                      </span>
-
-                      {/* Display Headline */}
-                      <h3 className="text-2xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight font-sans leading-tight">
-                        {currentScene.headline.includes("WE DON'T SELL AI") ? (
-                          <>
-                            WE DON'T SELL AI. <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1AD1B5] via-[#31a2b0] to-[#855df6]">
-                              WE SELL OUTCOMES.
-                            </span>
-                          </>
-                        ) : currentScene.headline.includes("FAIL") ? (
-                          <span className="text-rose-400 font-mono tracking-wider">
-                            {currentScene.headline}
-                          </span>
-                        ) : (
-                          currentScene.headline
-                        )}
-                      </h3>
-
-                      {/* Subheadline description */}
-                      <p className="text-xs sm:text-sm text-gray-300 font-light mt-3 max-w-lg leading-relaxed">
-                        {currentScene.subheadline}
-                      </p>
-
-                      {/* Bullet Takeaways */}
-                      <div className="mt-5 grid grid-cols-1 gap-2 w-full max-w-lg text-left">
-                        {currentScene.bulletPoints.map((bullet, i) => (
-                          <motion.div
-                            key={i}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.15 + i * 0.1 }}
-                            className="flex items-center gap-2.5 p-2 sm:p-2.5 rounded-xl bg-white/[0.04] border border-white/5 backdrop-blur-xs text-xs sm:text-sm text-gray-200"
-                          >
-                            {currentScene.theme === 'danger' ? (
-                              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                            ) : currentScene.theme === 'warning' ? (
-                              <Workflow className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5 text-[#1AD1B5] shrink-0" />
-                            )}
-                            <span className="font-light">{bullet}</span>
-                          </motion.div>
-                        ))}
-                      </div>
-
-                      {/* CTA inside Scene 6 */}
-                      {currentScene.id === 6 && (
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="mt-6 flex flex-wrap gap-3 justify-center"
-                        >
-                          <button
-                            onClick={onBookCall}
-                            className="bg-[#1AD1B5] hover:bg-[#15bda3] text-black font-extrabold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all duration-300 shadow-lg shadow-teal-500/20 flex items-center gap-2 cursor-pointer"
-                          >
-                            <span>Schedule Strategy Audit</span>
-                            <ArrowRight className="w-3.5 h-3.5 text-black" />
-                          </button>
-                          <a
-                            href="tel:8137040306"
-                            className="bg-white/10 hover:bg-white/20 text-white font-mono font-bold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider border border-white/10 flex items-center gap-2"
-                          >
-                            <PhoneCall className="w-3.5 h-3.5 text-[#1AD1B5]" />
-                            <span>(813) 704-0306</span>
-                          </a>
-                        </motion.div>
-                      )}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                {/* Bottom Timeline Controls */}
-                <div className="relative z-20 space-y-3">
-                  {/* Active Scene Progress Bar */}
-                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-[#1AD1B5] to-[#855df6] transition-all duration-75 ease-linear rounded-full"
-                      style={{ width: `${sceneProgress}%` }}
-                    />
-                  </div>
-
-                  {/* Scene Navigation */}
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={handlePrevScene}
-                      className="text-xs text-gray-400 hover:text-white flex items-center gap-1 font-mono transition-colors cursor-pointer"
-                    >
-                      <ChevronLeft className="w-4 h-4" /> Prev
-                    </button>
-
-                    <div className="flex gap-2">
-                      {VIDEO_SCENES.map((_, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            setCurrentSceneIdx(idx);
-                            setSceneProgress(0);
-                          }}
-                          className={`h-2 rounded-full transition-all cursor-pointer ${
-                            currentSceneIdx === idx 
-                              ? 'w-6 bg-[#1AD1B5]' 
-                              : 'w-2 bg-white/20 hover:bg-white/40'
-                          }`}
-                          aria-label={`Jump to scene ${idx + 1}`}
-                        />
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={handleNextScene}
-                      className="text-xs text-gray-400 hover:text-white flex items-center gap-1 font-mono transition-colors cursor-pointer"
-                    >
-                      Next <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-              </div>
             ) : (
-              /* Case 4: Video Cover Card (Click to Play or Drop Video) */
+              /* Case 3: Video Cover with YouTube Thumbnail & Direct Play */
               <div 
                 onClick={() => {
-                  if (hasNativeVideo) {
-                    setIsPlaying(true);
-                    videoRef.current?.play();
-                  } else {
-                    setIsPlaying(true);
-                    playTechTone(500, 'sine', 0.2);
-                  }
+                  setIsPlaying(true);
                 }}
-                className="relative w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#070C15] via-[#090F1B] to-[#04060A] cursor-pointer"
+                className="relative w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#070C15] via-[#090F1B] to-[#04060A] cursor-pointer group"
               >
-                
+                {/* Real YouTube video thumbnail backdrop */}
+                {cleanYoutubeId && (
+                  <div className="absolute inset-0 overflow-hidden">
+                    <img 
+                      src={`https://img.youtube.com/vi/${cleanYoutubeId}/maxresdefault.jpg`} 
+                      onError={(e) => {
+                        // Fallback to hqdefault if maxres isn't available
+                        (e.target as HTMLImageElement).src = `https://img.youtube.com/vi/${cleanYoutubeId}/hqdefault.jpg`;
+                      }}
+                      alt={videoTitle}
+                      className="w-full h-full object-cover opacity-35 group-hover:opacity-45 group-hover:scale-105 transition-all duration-700 filter brightness-90"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#070A10] via-[#070A10]/60 to-transparent" />
+                  </div>
+                )}
+
                 {/* Cybernetic glowing mesh */}
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1AD1B5]/20 via-transparent to-transparent opacity-70 pointer-events-none" />
                 <div className="absolute inset-0 opacity-15 bg-[linear-gradient(to_right,#1AD1B518_1px,transparent_1px),linear-gradient(to_bottom,#1AD1B518_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
@@ -819,36 +684,36 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
                     </div>
                   </div>
 
-                  <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.2em] text-[#1AD1B5] font-bold mb-2 bg-[#1AD1B5]/10 px-3.5 py-1 rounded-full border border-[#1AD1B5]/20">
-                    Watch Video Presentation
+                  <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.2em] text-[#1AD1B5] font-bold mb-2 bg-[#1AD1B5]/10 px-3.5 py-1 rounded-full border border-[#1AD1B5]/20 backdrop-blur-md">
+                    Watch 60-Second Video
                   </span>
 
-                  <h3 className="text-xl sm:text-3xl font-extrabold text-white uppercase tracking-tight font-sans">
+                  <h3 className="text-xl sm:text-3xl font-extrabold text-white uppercase tracking-tight font-sans drop-shadow-md">
                     Why Most AI Projects Fail — <br className="hidden sm:inline" />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1AD1B5] to-[#855df6]">
                       & How We Fix It
                     </span>
                   </h3>
 
-                  <p className="text-xs text-gray-400 mt-2 line-clamp-2 max-w-md font-light">
+                  <p className="text-xs text-gray-300 mt-2 line-clamp-2 max-w-md font-light drop-shadow">
                     Explore our diagnostic approach: We triage and streamline your workflows before automating them with AI voice dispatchers and custom software.
                   </p>
 
-                  <div className="mt-4 flex items-center gap-2 text-[11px] font-mono text-gray-400 bg-white/5 border border-white/10 px-3 py-1 rounded-lg">
-                    <Upload className="w-3 h-3 text-[#1AD1B5]" />
-                    <span>Drop your attached MP4 file here or click Load Video</span>
+                  <div className="mt-5 flex items-center gap-2 text-xs font-semibold text-white bg-[#1AD1B5]/20 hover:bg-[#1AD1B5]/30 border border-[#1AD1B5]/40 px-4 py-1.5 rounded-full backdrop-blur-md transition-colors">
+                    <Play className="w-3 h-3 text-[#1AD1B5] fill-[#1AD1B5]" />
+                    <span>Click to Play Video</span>
                   </div>
                 </div>
 
                 {/* Corner Badges */}
-                <div className="absolute top-4 left-4 hidden sm:flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[10px] font-mono text-gray-300">
+                <div className="absolute top-4 left-4 hidden sm:flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[10px] font-mono text-gray-300">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#1AD1B5]" />
                   <span>The Diagnostic DNA</span>
                 </div>
 
-                <div className="absolute bottom-4 right-4 hidden sm:flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[10px] font-mono text-gray-300">
+                <div className="absolute bottom-4 right-4 hidden sm:flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 text-[10px] font-mono text-gray-300">
                   <Sparkles className="w-3.5 h-3.5 text-[#1AD1B5]" />
-                  <span>HD Video Player</span>
+                  <span>1080p HD Presentation</span>
                 </div>
               </div>
             )}

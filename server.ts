@@ -1,11 +1,13 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { GoogleGenAI, Chat, Modality } from "@google/genai";
 
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "150mb" }));
+app.use(express.raw({ type: ["video/*", "application/octet-stream"], limit: "150mb" }));
 app.use(express.static(path.join(process.cwd(), "public")));
 
 app.get("/robots.txt", (req, res) => {
@@ -312,6 +314,72 @@ app.post("/api/tts", async (req, res) => {
   } catch (error) {
     console.error("Server TTS Error:", error);
     return res.json({ audio: null });
+  }
+});
+
+// Video Asset Management Endpoints
+const VIDEO_PUBLIC_PATH = path.join(process.cwd(), "public", "assets", "mo-blind-video.mp4");
+const ASSETS_DIR = path.join(process.cwd(), "public", "assets");
+
+app.get("/api/video-status", (req, res) => {
+  try {
+    const exists = fs.existsSync(VIDEO_PUBLIC_PATH);
+    return res.json({ 
+      hasServerVideo: exists,
+      url: exists ? "/assets/mo-blind-video.mp4" : null
+    });
+  } catch {
+    return res.json({ hasServerVideo: false, url: null });
+  }
+});
+
+app.post("/api/upload-video", (req, res) => {
+  try {
+    if (!fs.existsSync(ASSETS_DIR)) {
+      fs.mkdirSync(ASSETS_DIR, { recursive: true });
+    }
+
+    let buffer: Buffer | null = null;
+    if (Buffer.isBuffer(req.body)) {
+      buffer = req.body;
+    } else if (req.body && req.body.data) {
+      const base64Data = req.body.data.replace(/^data:video\/\w+;base64,/, "");
+      buffer = Buffer.from(base64Data, "base64");
+    }
+
+    if (!buffer || buffer.length === 0) {
+      return res.status(400).json({ error: "No video data received" });
+    }
+
+    fs.writeFileSync(VIDEO_PUBLIC_PATH, buffer);
+    // Also sync to root assets folder if present
+    const rootAssetsPath = path.join(process.cwd(), "assets", "mo-blind-video.mp4");
+    try {
+      if (fs.existsSync(path.join(process.cwd(), "assets"))) {
+        fs.writeFileSync(rootAssetsPath, buffer);
+      }
+    } catch {}
+
+    console.log(`Video uploaded successfully: ${buffer.length} bytes saved to ${VIDEO_PUBLIC_PATH}`);
+    return res.json({ success: true, url: "/assets/mo-blind-video.mp4", size: buffer.length });
+  } catch (error: any) {
+    console.error("Video Upload Error:", error);
+    return res.status(500).json({ error: error.message || "Failed to save video" });
+  }
+});
+
+app.delete("/api/upload-video", (req, res) => {
+  try {
+    if (fs.existsSync(VIDEO_PUBLIC_PATH)) {
+      fs.unlinkSync(VIDEO_PUBLIC_PATH);
+    }
+    const rootAssetsPath = path.join(process.cwd(), "assets", "mo-blind-video.mp4");
+    if (fs.existsSync(rootAssetsPath)) {
+      fs.unlinkSync(rootAssetsPath);
+    }
+    return res.json({ success: true });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
