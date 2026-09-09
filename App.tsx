@@ -40,9 +40,7 @@ import {
   PieChart,
   Building,
   Award,
-  Star,
-  Camera,
-  Upload
+  Star
 } from 'lucide-react';
 import FluidBackground from './components/FluidBackground';
 import GradientText from './components/GlitchText';
@@ -345,34 +343,13 @@ const App: React.FC = () => {
   const [captureRate, setCaptureRate] = useState(85); // % of missed calls captured by bot
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [profilePhoto, setProfilePhoto] = useState<string>(() => {
-    try {
-      return localStorage.getItem('david_profile_photo') || '/assets/david-profile.svg';
-    } catch {
-      return '/assets/david-profile.svg';
-    }
-  });
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          setProfilePhoto(result);
-          setImageError(false);
-          try {
-            localStorage.setItem('david_profile_photo', result);
-          } catch (err) {
-            console.warn("Could not save to localStorage:", err);
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // Clear any legacy custom-uploaded profile picture from localStorage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('david_profile_photo');
+    } catch {}
+  }, []);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -2452,53 +2429,28 @@ const App: React.FC = () => {
 
               {/* Portrait Container */}
               <div className="mt-8 relative group">
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleProfilePhotoChange} 
-                  accept="image/*" 
-                  className="hidden" 
-                />
                 <div className="absolute -inset-1.5 bg-gradient-to-r from-[#1AD1B5] to-[#805af5] rounded-3xl blur opacity-30 group-hover:opacity-55 transition duration-500" />
                 <div className="relative w-64 h-64 md:w-72 md:h-72 bg-[#0D1321] rounded-3xl border-2 border-white/10 overflow-hidden shadow-2xl flex items-center justify-center">
                   {!imageError ? (
-                    <>
-                      <img 
-                        src={profilePhoto} 
-                        alt="David Mohammed" 
-                        referrerPolicy="no-referrer"
-                        onError={() => {
-                          if (profilePhoto !== '/assets/david-profile.svg' && profilePhoto !== '/david-profile.svg') {
-                            setProfilePhoto('/assets/david-profile.svg');
-                          } else {
-                            setImageError(true);
-                          }
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      {/* Photo Update Action Overlay on Hover */}
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        title="Upload/Update Portrait Photo"
-                        className="absolute bottom-3 right-3 bg-black/80 hover:bg-[#1AD1B5] text-white hover:text-black border border-white/20 hover:border-transparent p-2 rounded-xl backdrop-blur-md transition-all duration-300 shadow-lg flex items-center gap-1.5 text-[10px] font-mono font-bold tracking-wider cursor-pointer opacity-80 group-hover:opacity-100"
-                      >
-                        <Camera className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Change Photo</span>
-                      </button>
-                    </>
+                    <img 
+                      src="/assets/david-profile.svg" 
+                      alt="David Mohammed - Technology Guide & Founder" 
+                      referrerPolicy="no-referrer"
+                      onError={() => setImageError(true)}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
                   ) : (
-                    /* High-End, Custom fallback vector illustration matching the theme */
+                    /* Custom fallback vector illustration matching the theme */
                     <div 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-b from-[#0F1D21] to-[#0A0E17] text-center select-none relative cursor-pointer group/fallback"
+                      className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-b from-[#0F1D21] to-[#0A0E17] text-center select-none relative"
                     >
                       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-teal-900/15 via-transparent to-transparent pointer-events-none" />
                       
                       {/* Stylized Combat Medic Badge Fallback */}
                       <div className="relative mb-4 flex items-center justify-center">
                         <div className="absolute -inset-3 bg-[#1AD1B5]/10 rounded-full blur-sm" />
-                        <div className="w-16 h-16 rounded-full bg-[#1AD1B5]/5 border border-[#1AD1B5]/30 flex items-center justify-center group-hover/fallback:border-[#1AD1B5]">
-                          <Camera className="w-8 h-8 text-[#1AD1B5]" />
+                        <div className="w-16 h-16 rounded-full bg-[#1AD1B5]/5 border border-[#1AD1B5]/30 flex items-center justify-center">
+                          <ShieldCheck className="w-8 h-8 text-[#1AD1B5]" />
                         </div>
                       </div>
                       
@@ -2508,9 +2460,9 @@ const App: React.FC = () => {
                       <span className="text-xs font-mono text-gray-400 uppercase tracking-widest mt-1">
                         MOHAMMED
                       </span>
-                      <p className="text-[9px] font-mono text-[#1AD1B5] uppercase tracking-widest mt-3 px-3 py-1 bg-[#1AD1B5]/5 border border-[#1AD1B5]/20 rounded-full flex items-center gap-1">
-                        <Upload className="w-2.5 h-2.5" /> Click to Add Photo
-                      </p>
+                      <span className="text-[10px] font-mono text-[#1AD1B5] uppercase tracking-widest mt-2 px-3 py-1 bg-[#1AD1B5]/10 border border-[#1AD1B5]/20 rounded-full">
+                        Founder & Technology Guide
+                      </span>
                     </div>
                   )}
                 </div>

@@ -16,14 +16,13 @@ import {
   Workflow, 
   Check, 
   PhoneCall,
-  Upload,
   Maximize,
   Minimize,
   RefreshCw,
   Sliders
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { saveVideoBlob, getVideoBlob, clearVideoBlob } from '../services/videoStorage';
+import { clearVideoBlob } from '../services/videoStorage';
 
 interface VideoSectionProps {
   youtubeVideoId?: string; // YouTube ID or URL
@@ -131,13 +130,11 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
   // Video Source States
   const [activeVideoSrc, setActiveVideoSrc] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
   const [hasNativeVideo, setHasNativeVideo] = useState(false);
 
-  // Native Video Player States
+  // Native Video Player States (if static videoFileUrl is provided)
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -153,64 +150,21 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
   const [isAudioMuted, setIsAudioMuted] = useState(true);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // 1. Initialize Video from Server API, IndexedDB or props
+  // Purge any legacy browser-cached video and initialize clean video source
   useEffect(() => {
-    let isMounted = true;
-    let objectUrlToRevoke: string | null = null;
+    // Purge any legacy visitor upload from IndexedDB
+    clearVideoBlob().catch(() => {});
 
-    async function initVideoSource() {
-      // 1. First check if server has a permanently uploaded MP4
-      try {
-        const res = await fetch('/api/video-status');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.hasServerVideo && data.url && isMounted) {
-            setActiveVideoSrc(data.url);
-            setHasNativeVideo(true);
-            return;
-          }
-        }
-      } catch {}
-
-      // 2. Check direct static asset /assets/mo-blind-video.mp4
-      try {
-        const res = await fetch('/assets/mo-blind-video.mp4', { method: 'HEAD' });
-        if (res.ok && isMounted) {
-          setActiveVideoSrc('/assets/mo-blind-video.mp4');
-          setHasNativeVideo(true);
-          return;
-        }
-      } catch {}
-
-      // 3. Check videoFileUrl prop
-      if (videoFileUrl && isMounted) {
-        setActiveVideoSrc(videoFileUrl);
-        setHasNativeVideo(true);
-        return;
-      }
-
-      // 4. Check IndexedDB as fallback
-      const storedBlob = await getVideoBlob();
-      if (storedBlob && isMounted) {
-        const url = URL.createObjectURL(storedBlob);
-        objectUrlToRevoke = url;
-        setActiveVideoSrc(url);
-        setHasNativeVideo(true);
-        return;
-      }
+    if (videoFileUrl) {
+      setActiveVideoSrc(videoFileUrl);
+      setHasNativeVideo(true);
+    } else {
+      setActiveVideoSrc('');
+      setHasNativeVideo(false);
     }
-
-    initVideoSource();
-
-    return () => {
-      isMounted = false;
-      if (objectUrlToRevoke) {
-        URL.revokeObjectURL(objectUrlToRevoke);
-      }
-    };
   }, [videoFileUrl]);
 
-  // Clean YouTube ID extraction if YouTube is provided
+  // Clean YouTube ID extraction for official company presentation
   const cleanYoutubeId = React.useMemo(() => {
     if (!youtubeVideoId) return "DRgf5DnR3w0";
     const match = youtubeVideoId.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
@@ -220,64 +174,6 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
   const embedUrl = cleanYoutubeId
     ? `https://www.youtube.com/embed/${cleanYoutubeId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`
     : null;
-
-  // File Upload / Drop handler for MP4 video with Server Sync
-  const handleVideoFile = async (file: File) => {
-    if (!file || !file.type.startsWith('video/')) {
-      alert("Please upload a valid MP4 or WebM video file.");
-      return;
-    }
-
-    try {
-      // 1. Immediately create local URL for instant playback
-      const localUrl = URL.createObjectURL(file);
-      setActiveVideoSrc(localUrl);
-      setHasNativeVideo(true);
-      setIsPlaying(true);
-      if (videoRef.current) {
-        videoRef.current.src = localUrl;
-        videoRef.current.play().catch(() => {});
-      }
-
-      // 2. Save locally in IndexedDB
-      await saveVideoBlob(file);
-
-      // 3. Upload to server so EVERY other device sees the video permanently
-      const formData = new FormData();
-      formData.append('video', file);
-      
-      const serverRes = await fetch('/api/upload-video', {
-        method: 'POST',
-        headers: {
-          'Content-Type': file.type || 'video/mp4',
-        },
-        body: file,
-      });
-
-      if (serverRes.ok) {
-        const data = await serverRes.json();
-        if (data.url) {
-          setActiveVideoSrc(data.url);
-        }
-      }
-    } catch (err) {
-      console.warn("Video upload to server notice:", err);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleVideoFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleVideoFile(e.target.files[0]);
-    }
-  };
 
   // Video Native Playback Handlers
   const togglePlay = () => {
@@ -432,15 +328,6 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
 
   return (
     <section id="video-overview" className="relative z-10 py-16 md:py-24 bg-[#070A10] border-y border-white/5 overflow-hidden">
-      {/* Hidden File Input */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileInputChange} 
-        accept="video/mp4,video/webm,video/*" 
-        className="hidden" 
-      />
-
       {/* Background ambient lighting */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-[#1AD1B5]/10 rounded-full blur-[140px] pointer-events-none" />
 
@@ -489,43 +376,9 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-          onDragLeave={() => setIsDragOver(false)}
-          onDrop={handleDrop}
           onMouseMove={handleMouseMove}
-          className={`relative max-w-4xl mx-auto rounded-3xl overflow-hidden border transition-all duration-300 bg-[#0A0D15] shadow-2xl shadow-teal-950/40 group ${
-            isDragOver ? 'border-[#1AD1B5] ring-4 ring-[#1AD1B5]/30' : 'border-white/10'
-          }`}
+          className="relative max-w-4xl mx-auto rounded-3xl overflow-hidden border border-white/10 transition-all duration-300 bg-[#0A0D15] shadow-2xl shadow-teal-950/40 group"
         >
-          {/* Top Quick Actions Bar (Upload / Switcher) */}
-          <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-black/70 hover:bg-[#1AD1B5] text-gray-300 hover:text-black border border-white/15 hover:border-transparent px-3 py-1.5 rounded-xl backdrop-blur-md text-[11px] font-mono font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-1.5 shadow-lg cursor-pointer"
-              title="Replace or upload attached MP4 video"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>{hasNativeVideo ? 'Replace Video' : 'Load Video (.mp4)'}</span>
-            </button>
-
-            {hasNativeVideo && (
-              <button
-                onClick={async () => {
-                  try {
-                    await fetch('/api/upload-video', { method: 'DELETE' });
-                  } catch {}
-                  await clearVideoBlob();
-                  setActiveVideoSrc('');
-                  setHasNativeVideo(false);
-                  setIsPlaying(false);
-                }}
-                className="bg-black/70 hover:bg-red-500/20 text-gray-400 hover:text-red-300 border border-white/15 px-2.5 py-1.5 rounded-xl backdrop-blur-md text-[11px] font-mono transition-all duration-300 cursor-pointer"
-                title="Reset to default YouTube presentation"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
 
           {/* 16:9 Video Canvas */}
           <div className="relative aspect-video w-full flex items-center justify-center overflow-hidden bg-black select-none">
@@ -638,13 +491,23 @@ export const VideoSection: React.FC<VideoSectionProps> = ({
               </div>
             ) : isPlaying && embedUrl ? (
               /* Case 2: External YouTube Embed */
-              <iframe
-                src={embedUrl}
-                title={videoTitle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="w-full h-full border-0"
-              />
+              <div className="relative w-full h-full">
+                <iframe
+                  src={embedUrl}
+                  title={videoTitle}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                />
+                <button
+                  onClick={() => setIsPlaying(false)}
+                  className="absolute top-3 right-3 bg-black/80 hover:bg-[#1AD1B5] text-white hover:text-black border border-white/20 hover:border-transparent px-2.5 py-1 rounded-lg backdrop-blur-md text-[10px] font-mono transition-all z-30 flex items-center gap-1 cursor-pointer"
+                  title="Return to video overview card"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Overview</span>
+                </button>
+              </div>
             ) : (
               /* Case 3: Video Cover with YouTube Thumbnail & Direct Play */
               <div 
