@@ -121,7 +121,7 @@ const VIDEO_SCENES = [
 ];
 
 export const VideoSection: React.FC<VideoSectionProps> = ({
-  youtubeVideoId = "https://youtu.be/DRgf5DnR3w0?si=mTlYbXzerDQbAmSI",
+  youtubeVideoId = "https://youtu.be/_-KZEaM9Gi4",
   videoFileUrl = "",
   videoTitle = "We Don't Sell AI. We Sell Business Outcomes.",
   videoDescription = "Watch our video on how Mo-Blind diagnoses operational bottlenecks before deploying AI voice agents, automations, or custom software.",
