@@ -1258,7 +1258,7 @@ const App: React.FC = () => {
 
       {/* 60-SECOND PHILOSOPHY VIDEO SECTION */}
       <VideoSection 
-        youtubeVideoId="https://youtu.be/DRgf5DnR3w0?si=mTlYbXzerDQbAmSI"
+        youtubeVideoId="https://youtu.be/_-KZEaM9Gi4"
         onBookCall={() => scrollToSection('consultation')} 
       />
 
